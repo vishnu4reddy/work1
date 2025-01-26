@@ -17,7 +17,7 @@ jobs:
       # Step 2: Set up Git with user info
       - name: Set up Git
         run: |
-          git config user.name "vishnu4reddy"
+          git config user.name "vishnu4reeddy"
           git config user.email "vishnu4reddy@users.noreply.github.com"
 
       # Step 3: Install GitHub CLI
@@ -36,7 +36,7 @@ jobs:
           # Filter duplicates using jq
           unique_prs=$(echo "$prs" | sort | uniq)
 
-          # Save the unique PRs to the environment file
+          # Save the unique PRs to the environment file (GitHub Actions environment variable)
           echo "prs=$unique_prs" >> $GITHUB_ENV
           
           echo "Filtered unique PRs: $unique_prs"
@@ -51,7 +51,7 @@ jobs:
           echo "Latest commit hash from main: $latest_commit"
 
           # Loop through each unique open PR and rebase onto the latest commit of the main branch
-          for pr in $(echo "$prs" | sort | uniq); do
+          for pr in $prs; do
             # Extract PR number and branch name from the string
             pr_number=$(echo "$pr" | cut -d' ' -f1)
             pr_branch=$(echo "$pr" | cut -d' ' -f2)
