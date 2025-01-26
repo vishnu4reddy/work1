@@ -42,8 +42,9 @@ jobs:
 
           # Loop through each open PR and rebase onto the latest commit of the main branch
           echo "$prs" | while IFS= read -r pr; do
-            pr_number=$(echo "$pr" | jq -r '.number')
-            pr_branch=$(echo "$pr" | jq -r '.headRefName')
+            # Extract PR number and branch name from the string
+            pr_number=$(echo "$pr" | cut -d' ' -f1)
+            pr_branch=$(echo "$pr" | cut -d' ' -f2)
 
             if [ -z "$pr_branch" ]; then
               echo "::error::Skipping PR #$pr_number because branch name is empty."
@@ -85,6 +86,9 @@ jobs:
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
-    env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+            # Add GitHub token to remote URL for authentication during push
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/vishnu4reddy/work1.git
+
+            git push origin "$pr_branch" --force-with-lease
+            echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
+          done
