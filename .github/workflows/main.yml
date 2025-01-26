@@ -28,6 +28,8 @@ jobs:
       # Step 4: Get list of open PRs
       - name: Get list of open PRs
         id: pr_list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
           echo "::set-output name=prs::$prs"
@@ -35,6 +37,8 @@ jobs:
 
       # Step 5: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName)
 
@@ -103,5 +107,3 @@ jobs:
             fi
           done
 
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # This ensures the GitHub token is available for use
