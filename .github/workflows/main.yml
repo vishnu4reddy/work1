@@ -27,36 +27,58 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Get list of open PRs and loop through each PR
-      - name: Rebase PRs onto main branch
+      # Step 4: Debug the GitHub token permissions (This will print if the token is set correctly)
+      - name: Debug the GitHub token permissions
+        run: |
+          echo "GH_TOKEN is set: ${{ secrets.GITHUB_TOKEN != '' }}"
+
+      # Step 5: Get list of open PRs
+      - name: Get list of open PRs
+        id: pr_list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
-          echo "Found PRs: $prs"
+          echo "::set-output name=prs::$prs"
+          echo "$prs"
 
-          # Loop through each PR and rebase it onto main
-          for pr in $prs; do
-            pr_number=$(echo "$pr" | cut -d ' ' -f 1)
-            pr_branch=$(echo "$pr" | cut -d ' ' -f 2)
+      # Step 6: Rebase remaining PRs onto main branch
+      - name: Rebase remaining PRs onto main branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
+        run: |
+          prs=$(gh pr list --state open --json number,headRefName)
 
+          # Loop through each open PR and rebase
+          echo "$prs" | jq -c '.[]' | while IFS= read -r pr; do
+            pr_number=$(echo "$pr" | jq -r '.number')
+            pr_branch=$(echo "$pr" | jq -r '.headRefName')
+            
             if [ -z "$pr_branch" ]; then
-              echo "::warning::Skipping PR #$pr_number because branch name is empty."
+              echo "::error::Skipping PR #$pr_number because branch name is empty."
               continue
             fi
 
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
 
-            # Fetch latest branches
+            # Fetch the latest main and PR branch
             git fetch origin main
             git fetch origin "$pr_branch"
 
             # Checkout the PR branch
             git checkout "$pr_branch"
 
-            # Rebase PR branch onto main
+            # Ensure there are no uncommitted changes before rebasing
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
+              continue
+            fi
+
+            # Rebase the PR branch onto the latest main branch
             if git rebase origin/main; then
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
-              # Force-push the rebased PR branch
+              # Push the rebased PR branch
               git push origin "$pr_branch" --force-with-lease
               echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
             else
