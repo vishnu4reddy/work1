@@ -80,11 +80,14 @@ jobs:
       
             # Attempt the rebase (skip conflicted commits)
             git rebase origin/main || {
-              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to conflicts. Skipping conflicted commits..."
-              
+              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to conflicts. Attempting to skip conflicted commits..."
+      
               # Automatically skip the commit causing the conflict
-              git rebase --skip
-              echo "::warning::Skipped conflicted commit for PR #$pr_number ($pr_branch)."
+              git rebase --skip || {
+                echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict."
+                git rebase --abort
+                continue
+              }
             }
       
             # If rebase was successful, push the rebased PR
@@ -93,6 +96,6 @@ jobs:
               git push origin "$pr_branch" --force-with-lease
               echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
             else
-              echo "::warning::Rebase failed for PR #$pr_number due to conflicts. Skipping this PR."
+              echo "::warning::Rebase failed for PR #$pr_number due to unresolved conflicts. Skipping this PR."
             fi
           done
