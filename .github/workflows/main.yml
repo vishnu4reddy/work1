@@ -61,14 +61,14 @@ jobs:
       
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
       
-            # Fetch the latest main and PR branch
+            # Fetch the latest main branch
             git fetch origin
       
-            # Checkout the main branch and pull latest changes
+            # Checkout and pull the latest main branch
             git checkout main
             git pull origin main
       
-            # Checkout the PR branch and pull latest changes
+            # Checkout the PR branch and pull the latest changes from the PR branch
             git checkout "$pr_branch"
             git pull origin "$pr_branch"
       
@@ -82,11 +82,15 @@ jobs:
             if git rebase origin/main; then
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
       
-              # Push the rebased PR branch
+              # Push the rebased PR branch with force-with-lease to prevent accidental overwrite
               git push origin "$pr_branch" --force-with-lease
               echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
             else
               echo "::error::Rebase failed for PR #$pr_number ($pr_branch)."
               git rebase --abort
+              continue
             fi
+      
+            # Fetch the latest main after pushing the PR to sync with changes
+            git fetch origin
           done
