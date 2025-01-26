@@ -28,12 +28,14 @@ jobs:
       # Step 4: Get list of open PRs (Only PRs that need to be rebased)
       - name: Get list of open PRs
         id: pr_list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the token explicitly for the `gh` CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
           echo "::set-output name=prs::$prs"
           echo "$prs"
 
-      # Step 5: Rebase the open PRs using the latest commit from main branch
+      # Step 5: Rebase the open PRs using the latest commit from the main branch
       - name: Rebase remaining PRs onto main branch
         run: |
           # Get the latest commit hash from the main branch
@@ -87,7 +89,7 @@ jobs:
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
             # Add GitHub token to remote URL for authentication during push
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/vishnu4reddy/work1.git
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/a/work1.git
 
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
