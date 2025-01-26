@@ -78,19 +78,19 @@ jobs:
               continue
             fi
       
-            # Rebase the PR branch onto the latest main branch
-            if git rebase origin/main; then
-              echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
+            # Start the rebase from scratch
+            git rebase origin/main || { 
+              echo "::error::Rebase failed for PR #$pr_number ($pr_branch). Aborting and retrying...";
+              git rebase --abort;
+              git fetch origin main;
+              git checkout "$pr_branch";
+              git pull origin "$pr_branch";  # Refresh the PR branch after abort
+              git rebase origin/main;  # Retry the rebase from scratch
+            }
       
-              # Push the rebased PR branch with force-with-lease to prevent accidental overwrite
-              git push origin "$pr_branch" --force-with-lease
-              echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
-            else
-              echo "::error::Rebase failed for PR #$pr_number ($pr_branch)."
-              git rebase --abort
-              continue
-            fi
-      
-            # Fetch the latest main after pushing the PR to sync with changes
-            git fetch origin
+            # If rebase is successful, push the rebased branch
+            echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
+            git push origin "$pr_branch" --force-with-lease
+            echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
           done
+      
