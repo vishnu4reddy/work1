@@ -61,7 +61,7 @@ jobs:
       
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
       
-            # Fetch the latest main branch
+            # Fetch the latest main branch and the PR branch
             git fetch origin
       
             # Checkout the main branch and pull the latest changes
@@ -70,7 +70,7 @@ jobs:
       
             # Checkout the PR branch and pull the latest changes from the PR branch
             git checkout "$pr_branch"
-            git pull origin "$pr_branch"  # Refresh PR branch with the latest changes
+            git pull origin "$pr_branch"
       
             # Ensure there are no uncommitted changes before rebasing
             if [ -n "$(git status --porcelain)" ]; then
@@ -84,24 +84,24 @@ jobs:
             # Rebase the PR branch onto the main branch
             git rebase origin/main
       
-            # Check for conflicts and handle them
-            if [ $? -ne 0 ]; then
+            # Handle conflicts: Skip commits causing conflicts
+            while [ $? -ne 0 ]; do
+              # Print the current conflicting commit
               echo "::warning::Rebase failed for PR #$pr_number due to a conflict."
       
-              # Automatically skip the current commit causing the issue
+              # Skip the problematic commit causing the conflict
               git rebase --skip
-              # If skipping works, continue to the next commit
               if [ $? -eq 0 ]; then
-                echo "::warning::Successfully skipped conflicting commit in PR #$pr_number."
+                echo "::warning::Successfully skipped a conflicting commit in PR #$pr_number."
               else
-                # If rebase still fails, abort the rebase and move to the next PR
+                # If skipping the commit doesn't resolve the issue, abort the rebase
                 echo "::error::Rebase failed for PR #$pr_number even after skipping. Aborting rebase."
                 git rebase --abort
                 continue  # Skip this PR and move on to the next one
               fi
-            fi
+            done
       
-            # If rebase was successful, push the rebased PR
+            # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
@@ -109,3 +109,4 @@ jobs:
           done
       
             
+                  
