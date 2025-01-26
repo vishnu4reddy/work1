@@ -32,46 +32,67 @@ jobs:
       - name: Rebase remaining PRs onto main branch
         run: |
           prs=$(gh pr list --state open --json number,headRefName)
-          
+
           # Loop through each open PR and rebase
           echo "$prs" | jq -c '.[]' | while IFS= read -r pr; do
             pr_number=$(echo "$pr" | jq -r '.number')
             pr_branch=$(echo "$pr" | jq -r '.headRefName')
-
+          
             if [ -z "$pr_branch" ]; then
               echo "::warning::Skipping PR #$pr_number because branch name is empty."
               continue
             fi
-
+          
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
-
+          
             # Fetch the latest main and PR branch
             git fetch origin main
             git fetch origin "$pr_branch"
-
+          
             # Checkout the PR branch
             git checkout "$pr_branch"
+          
             # Ensure there are no uncommitted changes before rebasing
             git status
-            
+          
             if [ -n "$(git status --porcelain)" ]; then
               echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
               continue
             fi
-
+          
             # Rebase the PR branch onto the latest main branch
             if git rebase origin/main; then
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-
+          
+              # Force-push the rebased branch to the remote
               if git push origin "$pr_branch" --force-with-lease; then
                 echo "Successfully force-pushed rebased PR #$pr_number ($pr_branch)."
               else
                 echo "::error::Failed to push rebased PR #$pr_number ($pr_branch)."
               fi
             else
-              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch). Skipping this PR."
-              git rebase --abort
+              # Handle the conflict automatically by checking out the file from the current branch (or from main, depending on your preference)
+              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch). Resolving conflict automatically."
+          
+              # Checkout the latest main.yml version from main
+              git checkout --theirs .github/workflows/main.yml  # This accepts the version from the main branch
+          
+              # Alternatively, you can use 'git checkout --ours .github/workflows/main.yml' to accept the version from the PR branch
+          
+              # Continue the rebase after resolving the conflict
+              git add .github/workflows/main.yml
+              git rebase --continue
+          
+              # If the rebase continues successfully, push the changes
+              if [ $? -eq 0 ]; then
+                git push origin "$pr_branch" --force-with-lease
+                echo "Rebase resolved and PR #$pr_number ($pr_branch) successfully rebased and pushed."
+              else
+                echo "::error::Rebase failed for PR #$pr_number ($pr_branch). Manual intervention needed."
+                git rebase --abort
+              fi
             fi
           done
+
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
