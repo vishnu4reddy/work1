@@ -78,24 +78,31 @@ jobs:
               continue
             fi
       
-            # Attempt the rebase (skip conflicted commits)
-            git rebase origin/main || {
-              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to conflicts. Attempting to skip conflicted commits..."
+            # Attempt the rebase
+            git rebase origin/main
       
-              # Automatically skip the commit causing the conflict
-              git rebase --skip || {
-                echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict."
+            # Check the exit status of git rebase
+            if [ $? -ne 0 ]; then
+              # Check if rebase failed due to merge conflict (i.e., specific error message)
+              if git status | grep -q "both added"; then
+                echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to merge conflict in file(s). Skipping conflicting commits..."
+                git rebase --skip || {
+                  echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict."
+                  git rebase --abort
+                  continue
+                }
+              else
+                # If rebase failed for another reason (not conflict), don't skip the PR, log an error
+                echo "::error::Rebase failed for PR #$pr_number ($pr_branch) for an unknown reason. Aborting."
                 git rebase --abort
                 continue
-              }
-            }
+              fi
+            fi
       
             # If rebase was successful, push the rebased PR
-            if [ $? -eq 0 ]; then
-              echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-              git push origin "$pr_branch" --force-with-lease
-              echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
-            else
-              echo "::warning::Rebase failed for PR #$pr_number due to unresolved conflicts. Skipping this PR."
-            fi
+            echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
+            git push origin "$pr_branch" --force-with-lease
+            echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
+      
           done
+
