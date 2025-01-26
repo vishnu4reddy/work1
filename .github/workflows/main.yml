@@ -25,7 +25,12 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Get list of open PRs
+      # Step 4: Debug the GitHub token permissions (This will print if the token is set correctly)
+      - name: Debug the GitHub token permissions
+        run: |
+          echo "GH_TOKEN is set: ${{ secrets.GITHUB_TOKEN != '' }}"
+
+      # Step 5: Get list of open PRs
       - name: Get list of open PRs
         id: pr_list
         env:
@@ -35,7 +40,7 @@ jobs:
           echo "::set-output name=prs::$prs"
           echo "$prs"
 
-      # Step 5: Rebase remaining PRs onto main branch
+      # Step 6: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
@@ -66,13 +71,6 @@ jobs:
               echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
               continue
             fi
-            
-            # Set environment variables to prevent editor prompt
-            export GIT_COMMITTER_NAME="github-actions[bot]"
-            export GIT_COMMITTER_EMAIL="github-actions[bot]@users.noreply.github.com"
-            export GIT_AUTHOR_NAME="github-actions[bot]"
-            export GIT_AUTHOR_EMAIL="github-actions[bot]@users.noreply.github.com"
-            export EDITOR=true  # Set a dummy editor to avoid prompting for commit messages
             
             # Rebase the PR branch onto the latest main branch
             if git rebase origin/main; then
