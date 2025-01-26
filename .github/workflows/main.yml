@@ -25,13 +25,15 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Get the list of open PRs
+      # Step 4: Get list of open PRs
       - name: Get list of open PRs
         id: pr_list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the GitHub token here
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
           echo "PR List: $prs"
-          echo "::set-output name=prs::$prs"  # Use this to pass the PR list to the next step
+          echo "::set-output name=prs::$prs"
 
       # Step 5: Rebase remaining PRs onto the main branch
       - name: Rebase remaining PRs onto main branch
