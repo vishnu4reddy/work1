@@ -82,24 +82,14 @@ jobs:
             echo "Starting rebase of PR #$pr_number..."
       
             # Rebase the PR branch onto the main branch
-            git rebase origin/main
+            git rebase origin/main || {
+              echo "::error::Rebase failed for PR #$pr_number. Trying to skip conflicting commits."
       
-            # Handle conflicts: Skip commits causing conflicts
-            while [ $? -ne 0 ]; do
-              # Print the current conflicting commit
-              echo "::warning::Rebase failed for PR #$pr_number due to a conflict."
-      
-              # Skip the problematic commit causing the conflict
-              git rebase --skip
-              if [ $? -eq 0 ]; then
-                echo "::warning::Successfully skipped a conflicting commit in PR #$pr_number."
-              else
-                # If skipping the commit doesn't resolve the issue, abort the rebase
-                echo "::error::Rebase failed for PR #$pr_number even after skipping. Aborting rebase."
-                git rebase --abort
-                continue  # Skip this PR and move on to the next one
-              fi
-            done
+              # Keep skipping the conflicting commits until the rebase is successful
+              while ! git rebase --skip; do
+                echo "::warning::Skipping commit due to conflict. Trying again..."
+              done
+            }
       
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
@@ -107,6 +97,7 @@ jobs:
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
       
           done
+
       
             
                   
