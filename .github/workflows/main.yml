@@ -85,9 +85,6 @@ jobs:
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
-  env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            # Push the rebased PR
-            git push origin "$pr_branch" --force-with-lease
-            echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
-          done
+    env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
