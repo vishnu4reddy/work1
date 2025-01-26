@@ -17,7 +17,7 @@ jobs:
       # Step 2: Set up Git with user info
       - name: Set up Git
         run: |
-          git config user.name "vishnu4reeddy"
+          git config user.name "vishnu4reddy"
           git config user.email "vishnu4reddy@users.noreply.github.com"
 
       # Step 3: Install GitHub CLI
@@ -25,38 +25,24 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Get list of open PRs and filter duplicates
+      # Step 4: Get the list of open PRs
       - name: Get list of open PRs
         id: pr_list
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the token explicitly for the `gh` CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
+          echo "PR List: $prs"
+          echo "::set-output name=prs::$prs"  # Use this to pass the PR list to the next step
 
-          # Filter duplicates using jq
-          unique_prs=$(echo "$prs" | sort | uniq)
-
-          # Save the unique PRs to the environment file (GitHub Actions environment variable)
-          echo "prs=$unique_prs" >> $GITHUB_ENV
-          
-          echo "Filtered unique PRs: $unique_prs"
-
-      # Step 5: Rebase the open PRs using the latest commit from the main branch
+      # Step 5: Rebase remaining PRs onto the main branch
       - name: Rebase remaining PRs onto main branch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure authentication for git commands as well
         run: |
-          # Get the latest commit hash from the main branch
-          latest_commit=$(git rev-parse origin/main)
-          echo "Latest commit hash from main: $latest_commit"
-
-          # Loop through each unique open PR and rebase onto the latest commit of the main branch
-          for pr in $prs; do
-            # Extract PR number and branch name from the string
-            pr_number=$(echo "$pr" | cut -d' ' -f1)
-            pr_branch=$(echo "$pr" | cut -d' ' -f2)
-
-            # Skip if the branch name is empty
+          prs="${{ steps.pr_list.outputs.prs }}"
+          
+          # Loop through each open PR and rebase
+          echo "$prs" | while IFS= read -r pr; do
+            pr_number=$(echo "$pr" | awk '{print $1}')
+            pr_branch=$(echo "$pr" | awk '{print $2}')
+            
             if [ -z "$pr_branch" ]; then
               echo "::error::Skipping PR #$pr_number because branch name is empty."
               continue
@@ -85,7 +71,7 @@ jobs:
             echo "Starting rebase of PR #$pr_number onto latest commit from main..."
 
             # Rebase the PR branch onto the latest commit from the main branch
-            git rebase $latest_commit || {
+            git rebase origin/main || {
               echo "::error::Rebase failed for PR #$pr_number. Trying to skip conflicting commits."
 
               # Keep skipping the conflicting commits until the rebase is successful
@@ -97,10 +83,8 @@ jobs:
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
-            # Set the remote URL with GitHub token for authentication during push
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/a/work1.git
-
-            # Push the rebased branch back to GitHub
+            # Push the rebased PR to the remote
+            git remote set-url origin https://x-access-token:${{ secrets.PAT_NAME }}@github.com/vishnu4reddy/work1.git
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
           done
