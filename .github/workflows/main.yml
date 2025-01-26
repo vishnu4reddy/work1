@@ -83,16 +83,17 @@ jobs:
       
             # Check the exit status of git rebase
             if [ $? -ne 0 ]; then
-              # Check if rebase failed due to merge conflict (i.e., specific error message)
+              # If rebase failed due to merge conflict, skip the commit
               if git status | grep -q "both added"; then
                 echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to merge conflict in file(s). Skipping conflicting commits..."
+                # Try to skip the current commit causing the conflict
                 git rebase --skip || {
                   echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict."
                   git rebase --abort
                   continue
                 }
               else
-                # If rebase failed for another reason (not conflict), don't skip the PR, log an error
+                # If rebase failed for another reason (not conflict), log the error and abort
                 echo "::error::Rebase failed for PR #$pr_number ($pr_branch) for an unknown reason. Aborting."
                 git rebase --abort
                 continue
@@ -105,4 +106,3 @@ jobs:
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
       
           done
-
