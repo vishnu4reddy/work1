@@ -78,7 +78,7 @@ jobs:
               continue
             fi
       
-            # Attempt the rebase (no retries, skip if conflict occurs)
+            # Attempt the rebase (skip if conflict occurs)
             git rebase origin/main
             rebase_status=$?
       
@@ -90,6 +90,6 @@ jobs:
             else
               # Rebase failed due to conflict, skip this PR and continue with the next one
               echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to conflicts. Skipping this PR."
-              git rebase --abort
+              git rebase --abort  # Abort the rebase to proceed with the next PR
             fi
           done
