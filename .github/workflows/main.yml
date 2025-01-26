@@ -45,39 +45,43 @@ jobs:
       # Step 6: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           prs=$(gh pr list --state open --json number,headRefName)
-
+      
           # Loop through each open PR and rebase
           echo "$prs" | jq -c '.[]' | while IFS= read -r pr; do
             pr_number=$(echo "$pr" | jq -r '.number')
             pr_branch=$(echo "$pr" | jq -r '.headRefName')
-            
+      
             if [ -z "$pr_branch" ]; then
               echo "::error::Skipping PR #$pr_number because branch name is empty."
               continue
             fi
-
+      
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
-
+      
             # Fetch the latest main and PR branch
-            git fetch origin main
-            git fetch origin "$pr_branch"
-
-            # Checkout the PR branch
+            git fetch origin
+      
+            # Checkout the main branch and pull latest changes
+            git checkout main
+            git pull origin main
+      
+            # Checkout the PR branch and pull latest changes
             git checkout "$pr_branch"
-
+            git pull origin "$pr_branch"
+      
             # Ensure there are no uncommitted changes before rebasing
             if [ -n "$(git status --porcelain)" ]; then
               echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
               continue
             fi
-
+      
             # Rebase the PR branch onto the latest main branch
             if git rebase origin/main; then
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-
+      
               # Push the rebased PR branch
               git push origin "$pr_branch" --force-with-lease
               echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
