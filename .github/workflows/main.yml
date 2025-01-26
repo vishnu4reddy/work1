@@ -94,7 +94,7 @@ jobs:
       
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-            git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/a/work1.git
+            git remote set-url origin https://x-access-token:${{ secrets.PAT_NAME }}@github.com/a/work1.git
 
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
