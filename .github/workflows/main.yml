@@ -70,7 +70,7 @@ jobs:
       
             # Checkout the PR branch and pull the latest changes from the PR branch
             git checkout "$pr_branch"
-            git pull origin "$pr_branch"
+            git pull origin "$pr_branch"  # Refresh PR branch with the latest changes
       
             # Ensure there are no uncommitted changes before rebasing
             if [ -n "$(git status --porcelain)" ]; then
@@ -78,19 +78,18 @@ jobs:
               continue
             fi
       
-            # Start the rebase from scratch
-            git rebase origin/main || { 
-              echo "::error::Rebase failed for PR #$pr_number ($pr_branch). Aborting and retrying...";
-              git rebase --abort;
-              git fetch origin main;
-              git checkout "$pr_branch";
-              git pull origin "$pr_branch";  # Refresh the PR branch after abort
-              git rebase origin/main;  # Retry the rebase from scratch
-            }
+            # Attempt the rebase (no retries, skip if conflict occurs)
+            git rebase origin/main
+            rebase_status=$?
       
-            # If rebase is successful, push the rebased branch
-            echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-            git push origin "$pr_branch" --force-with-lease
-            echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
+            if [ $rebase_status -eq 0 ]; then
+              # Rebase succeeded, push the rebased PR
+              echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
+              git push origin "$pr_branch" --force-with-lease
+              echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
+            else
+              # Rebase failed due to conflict, skip this PR and continue with the next one
+              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to conflicts. Skipping this PR."
+              git rebase --abort
+            fi
           done
-      
