@@ -10,18 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout the repository with the GH_TOKEN for authentication
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_TOKEN }}  # Uses the GitHub token for authentication
 
+      # Step 2: Set up Git
       - name: Set up Git
         run: |
-          git config user.name "vishnu4reddy"
+          git config user.name "vishn4ureddy"
           git config user.email "vishnu4reddy@users.noreply.github.com"
 
+      # Step 3: Install GitHub CLI
       - name: Install GitHub CLI
         run: |
           sudo apt-get install gh
 
+      # Step 4: Get list of open PRs
       - name: Get list of open PRs
         id: pr_list
         run: |
@@ -29,9 +35,9 @@ jobs:
           echo "::set-output name=prs::$prs"
           echo "$prs"
 
+      # Step 5: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
         run: |
-          
           prs=$(gh pr list --state open --json number,headRefName)
 
           # Loop through each open PR and rebase
@@ -73,11 +79,8 @@ jobs:
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
           
               # Force-push the rebased branch to the remote
-              if git push origin "$pr_branch" --force-with-lease; then
-                echo "Successfully force-pushed rebased PR #$pr_number ($pr_branch)."
-              else
-                echo "::error::Failed to push rebased PR #$pr_number ($pr_branch)."
-              fi
+              git push origin "$pr_branch" --force-with-lease
+              echo "Successfully force-pushed rebased PR #$pr_number ($pr_branch)."
             else
               # Handle the conflict automatically by checking out the file from the current branch (or from main, depending on your preference)
               echo "::warning::Rebase failed for PR #$pr_number ($pr_branch). Resolving conflict automatically."
@@ -103,4 +106,4 @@ jobs:
           done
 
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # This ensures the GitHub token is available for use
