@@ -88,7 +88,7 @@ jobs:
             if [ $? -ne 0 ]; then
               echo "::warning::Rebase failed for PR #$pr_number due to a conflict."
       
-              # Attempt to resolve the conflict by skipping the current commit
+              # Automatically skip the current commit causing the issue
               git rebase --skip
               # If skipping works, continue to the next commit
               if [ $? -eq 0 ]; then
@@ -108,3 +108,4 @@ jobs:
       
           done
       
+            
