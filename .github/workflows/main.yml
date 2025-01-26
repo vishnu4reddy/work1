@@ -81,20 +81,22 @@ jobs:
             # Attempt the rebase
             git rebase origin/main
       
-            # Check the exit status of git rebase
+            # If the rebase fails due to a conflict, try to skip the commit
             if [ $? -ne 0 ]; then
-              # If rebase failed due to merge conflict, skip the commit
-              if git status | grep -q "both added"; then
-                echo "::warning::Rebase failed for PR #$pr_number ($pr_branch) due to merge conflict in file(s). Skipping conflicting commits..."
-                # Try to skip the current commit causing the conflict
+              echo "::warning::Rebase failed for PR #$pr_number due to a conflict."
+      
+              # Check if the conflict is in the specific file we expect (main.yml)
+              if git status | grep -q "both added" && git status | grep -q ".github/workflows/main.yml"; then
+                echo "::warning::Conflict detected in .github/workflows/main.yml. Attempting to skip the conflicting commit."
+                
+                # Try to skip the commit
                 git rebase --skip || {
-                  echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict."
+                  echo "::error::Unable to skip the commit. Aborting rebase for PR #$pr_number."
                   git rebase --abort
                   continue
                 }
               else
-                # If rebase failed for another reason (not conflict), log the error and abort
-                echo "::error::Rebase failed for PR #$pr_number ($pr_branch) for an unknown reason. Aborting."
+                echo "::error::Rebase failed for PR #$pr_number due to an unknown error. Aborting rebase."
                 git rebase --abort
                 continue
               fi
