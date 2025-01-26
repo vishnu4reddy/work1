@@ -10,11 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository (no need to pass token explicitly)
+      # Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # Provide the token for authentication
 
-      # Step 2: Set up Git
+      # Step 2: Set up Git with user info
       - name: Set up Git
         run: |
           git config user.name "vishnu4reddy"
@@ -25,80 +27,40 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Debug the GitHub token permissions (This will print if the token is set correctly)
-      - name: Debug the GitHub token permissions
-        run: |
-          echo "GH_TOKEN is set: ${{ secrets.GITHUB_TOKEN != '' }}"
-
-      # Step 5: Get list of open PRs
-      - name: Get list of open PRs
-        id: pr_list
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
+      # Step 4: Get list of open PRs and loop through each PR
+      - name: Rebase PRs onto main branch
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
-          echo "::set-output name=prs::$prs"
-          echo "$prs"
+          echo "Found PRs: $prs"
 
-      # Step 6: Rebase remaining PRs onto main branch
-      - name: Rebase remaining PRs onto main branch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the token explicitly to gh CLI
-        run: |
-         prs=$(gh pr list --state open --json number,headRefName)
+          # Loop through each PR and rebase it onto main
+          for pr in $prs; do
+            pr_number=$(echo "$pr" | cut -d ' ' -f 1)
+            pr_branch=$(echo "$pr" | cut -d ' ' -f 2)
 
-          # Loop through each open PR and rebase
-          echo "$prs" | jq -c '.[]' | while IFS= read -r pr; do
-            pr_number=$(echo "$pr" | jq -r '.number')
-            pr_branch=$(echo "$pr" | jq -r '.headRefName')
-            
             if [ -z "$pr_branch" ]; then
-              echo "::error::Skipping PR #$pr_number because branch name is empty."
+              echo "::warning::Skipping PR #$pr_number because branch name is empty."
               continue
             fi
-          
+
             echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
-          
-            # Fetch the latest main and PR branch
+
+            # Fetch latest branches
             git fetch origin main
             git fetch origin "$pr_branch"
-            
+
             # Checkout the PR branch
             git checkout "$pr_branch"
-            
-            # Ensure there are no uncommitted changes before rebasing
-            if [ -n "$(git status --porcelain)" ]; then
-              echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
-              continue
-            fi
-            
-            # Rebase the PR branch onto the latest main branch
+
+            # Rebase PR branch onto main
             if git rebase origin/main; then
               echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
-          
-              # Push the rebased PR branch
-              if git push origin "$pr_branch" --force-with-lease; then
-                echo "Successfully force-pushed rebased PR #$pr_number ($pr_branch)."
-              else
-                echo "::error::Failed to push rebased PR #$pr_number ($pr_branch)."
-              fi
+
+              # Force-push the rebased PR branch
+              git push origin "$pr_branch" --force-with-lease
+              echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
             else
-              # Handle the conflict automatically
-              echo "::warning::Rebase failed for PR #$pr_number ($pr_branch). Resolving conflict automatically."
-          
-              # Checkout the latest version from main
-              git checkout --theirs .github/workflows/main.yml  # This accepts the version from the main branch
-          
-              git add .github/workflows/main.yml
-              git rebase --continue
-              
-              # Push the rebased PR branch
-              if [ $? -eq 0 ]; then
-                git push origin "$pr_branch" --force-with-lease
-                echo "Rebase resolved and PR #$pr_number ($pr_branch) successfully rebased and pushed."
-              else
-                echo "::error::Rebase failed for PR #$pr_number ($pr_branch). Manual intervention needed."
-                git rebase --abort
-              fi
+              echo "::error::Rebase failed for PR #$pr_number ($pr_branch)."
+              git rebase --abort
             fi
           done
