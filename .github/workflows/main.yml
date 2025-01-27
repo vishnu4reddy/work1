@@ -67,11 +67,11 @@ jobs:
               # while ! git rebase --skip; do
               #   echo "::warning::Skipping commit due to conflict. Trying again..."
               # done
-              git rebase --skip || {
-               echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict.
-                git rebase --abort
-                continue
-               }
+                git rebase --skip || {
+                 echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict.
+                  git rebase --abort
+                  continue
+                 }
             }
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
