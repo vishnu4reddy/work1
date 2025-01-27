@@ -32,17 +32,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Fetch open PRs and print them for debugging
-          prs=$(gh pr list --state open --json number,headRefName)
+          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
           echo "Raw PR list output:"
           echo "$prs"
 
-          # Parse the PRs using jq
-          parsed_prs=$(echo "$prs" | jq -c '.[] | "\(.number) \(.headRefName)"')
-          echo "Parsed PR list:"
-          echo "$parsed_prs"
-
           # Set the parsed output as an output variable for the next step
-          echo "::set-output name=prs::$parsed_prs"
+          echo "::set-output name=prs::$prs"
 
       # Step 5: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
@@ -52,6 +47,7 @@ jobs:
           prs="${{ steps.pr_list.outputs.prs }}"
 
           # Loop through each open PR and rebase onto main
+          # Ensure the prs variable is parsed into an array of PR numbers and branches
           echo "$prs" | while IFS= read -r pr; do
             pr_number=$(echo "$pr" | cut -d ' ' -f 1)
             pr_branch=$(echo "$pr" | cut -d ' ' -f 2)
