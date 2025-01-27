@@ -1,58 +1,66 @@
 on:
   push:
     branches:
-      - main  # Trigger on main branch push (e.g., after merging a PR)
+      - main  # Trigger this action on push to the main branch
 
 jobs:
   rebase:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
+      # Step 1: Checkout the repository using GITHUB_TOKEN
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Provide the token for authentication
+          token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token for fetching and checking out
 
       # Step 2: Set up Git with user info
       - name: Set up Git
         run: |
-          git config user.name "vishnu4reddy"
-          git config user.email "vishnu4reddy@users.noreply.github.com"
+          git config user.name "vishnu4reddy"  # Replace with your username
+          git config user.email "vishnu4reddy@users.noreply.github.com"  # Replace with your email
 
       # Step 3: Install GitHub CLI
       - name: Install GitHub CLI
         run: |
+          sudo apt-get update
           sudo apt-get install gh
 
-      # Step 4: Get list of open PRs
+      # Step 4: Get the list of open PRs using GH_TOKEN
       - name: Get list of open PRs
         id: pr_list
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Pass the GitHub token here
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Provide the token explicitly to gh CLI
         run: |
           prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
-          echo "PR List: $prs"
           echo "::set-output name=prs::$prs"
+          echo "Open PRs: $prs"
 
-      # Step 5: Rebase remaining PRs onto the main branch
-      - name: Rebase remaining PRs onto main branch
+      # Step 5: Rebase PRs onto the latest commit from the main branch
+      - name: Rebase PRs onto the latest commit of main
+        env:
+          GH_TOKEN: ${{ secrets.PAT_NAME }}  # Ensure GH_TOKEN is available during rebase
         run: |
           prs="${{ steps.pr_list.outputs.prs }}"
-          
-          # Loop through each open PR and rebase
+
+          # Get the latest commit hash from the main branch using GH_TOKEN for authentication
+          git fetch origin main  # Fetch the latest main branch
+          latest_commit=$(git rev-parse origin/main)  # Get the latest commit hash
+          echo "Latest commit hash from main: $latest_commit"
+
+          # Loop through each PR and attempt to rebase
           echo "$prs" | while IFS= read -r pr; do
             pr_number=$(echo "$pr" | awk '{print $1}')
             pr_branch=$(echo "$pr" | awk '{print $2}')
-            
+
             if [ -z "$pr_branch" ]; then
               echo "::error::Skipping PR #$pr_number because branch name is empty."
               continue
             fi
 
-            echo "Rebasing PR #$pr_number ($pr_branch) onto main branch..."
+            echo "Rebasing PR #$pr_number ($pr_branch) onto latest commit of main branch..."
 
-            # Fetch the latest main branch and the PR branch
+            # Fetch the latest changes for both main and PR branches
             git fetch origin
 
             # Checkout the main branch and pull the latest changes
@@ -69,23 +77,19 @@ jobs:
               continue
             fi
 
-            # Start the rebase process
+            # Start the rebase process onto the latest commit from main using GH_TOKEN for authentication
             echo "Starting rebase of PR #$pr_number onto latest commit from main..."
-
-            # Rebase the PR branch onto the latest commit from the main branch
-            git rebase origin/main || {
-              echo "::error::Rebase failed for PR #$pr_number. Trying to skip conflicting commits."
+            git rebase $latest_commit || {
+              # If there's a conflict during the rebase, abort the rebase and skip the PR
+              echo "::warning::Rebase failed for PR #$pr_number due to conflicts. Skipping this PR."
+              git rebase --abort  # Abort the rebase to skip the current PR
               continue
-              # Keep skipping the conflicting commits until the rebase is successful
-              # while ! git rebase --skip; do
-              #   echo "::warning::Skipping commit due to conflict. Trying again..."
-              # done
             }
 
-            # After the rebase is successful, push the rebased PR
+            # After the rebase is successful, push the rebased PR using the PAT for authentication
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
-            # Push the rebased PR to the remote
+            # Use the PAT for git push authentication
             git remote set-url origin https://x-access-token:${{ secrets.PAT_NAME }}@github.com/vishnu4reddy/work1.git
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
