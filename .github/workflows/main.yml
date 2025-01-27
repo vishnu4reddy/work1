@@ -75,11 +75,11 @@ jobs:
             # Rebase the PR branch onto the latest commit from the main branch
             git rebase origin/main || {
               echo "::error::Rebase failed for PR #$pr_number. Trying to skip conflicting commits."
-
+              continue
               # Keep skipping the conflicting commits until the rebase is successful
-              while ! git rebase --skip; do
-                echo "::warning::Skipping commit due to conflict. Trying again..."
-              done
+              # while ! git rebase --skip; do
+              #   echo "::warning::Skipping commit due to conflict. Trying again..."
+              # done
             }
 
             # After the rebase is successful, push the rebased PR
