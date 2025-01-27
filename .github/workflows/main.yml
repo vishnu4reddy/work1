@@ -57,7 +57,7 @@ jobs:
       # Step 6: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_NAME }}
         run: |
           prs=$(gh pr list --state open --json number,headRefName)
       
