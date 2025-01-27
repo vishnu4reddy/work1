@@ -25,27 +25,36 @@ jobs:
         run: |
           sudo apt-get install gh
 
-      # Step 4: Get list of open PRs
+      # Step 4: Get list of open PRs and debug the output
       - name: Get list of open PRs
         id: pr_list
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
-          echo "::set-output name=prs::$prs"
+          # Fetch open PRs and print them for debugging
+          prs=$(gh pr list --state open --json number,headRefName)
+          echo "Raw PR list output:"
           echo "$prs"
+
+          # Parse the PRs using jq
+          parsed_prs=$(echo "$prs" | jq -c '.[] | "\(.number) \(.headRefName)"')
+          echo "Parsed PR list:"
+          echo "$parsed_prs"
+
+          # Set the parsed output as an output variable for the next step
+          echo "::set-output name=prs::$parsed_prs"
 
       # Step 5: Rebase remaining PRs onto main branch
       - name: Rebase remaining PRs onto main branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
-          
+          prs="${{ steps.pr_list.outputs.prs }}"
+
           # Loop through each open PR and rebase onto main
           echo "$prs" | while IFS= read -r pr; do
-            pr_number=$(echo "$pr" | jq -r '.number')
-            pr_branch=$(echo "$pr" | jq -r '.headRefName')
+            pr_number=$(echo "$pr" | cut -d ' ' -f 1)
+            pr_branch=$(echo "$pr" | cut -d ' ' -f 2)
 
             # If no branch name, skip the PR
             if [ -z "$pr_branch" ]; then
