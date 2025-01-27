@@ -58,7 +58,7 @@ jobs:
               continue
             fi
 
-            echo "Rebasing PR #$pr_number ($pr_branch) onto latest commit of main branch..."
+            echo "Checking PR #$pr_number ($pr_branch) to see if rebase is needed..."
 
             # Fetch the latest changes for both main and PR branches
             git fetch origin
@@ -70,6 +70,13 @@ jobs:
             # Checkout the PR branch and pull the latest changes from the PR branch
             git checkout "$pr_branch"
             git pull origin "$pr_branch"
+
+            # Check if the PR branch is already up-to-date with the main branch
+            # If no changes, skip this PR
+            if git merge-base --is-ancestor origin/main "$pr_branch"; then
+              echo "::info::PR #$pr_number ($pr_branch) is already up-to-date with main. Skipping rebase."
+              continue
+            fi
 
             # Ensure there are no uncommitted changes before rebasing
             if [ -n "$(git status --porcelain)" ]; then
