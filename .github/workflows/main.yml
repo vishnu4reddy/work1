@@ -57,16 +57,21 @@ jobs:
               echo "::error::There are uncommitted changes in PR #$pr_number ($pr_branch). Please commit or stash them before proceeding."
               continue
             fi
-            # Start the rebase process
-            echo "Starting rebase of PR #$pr_number onto latest commit from main..."
+            # # Start the rebase process
+            # echo "Starting rebase of PR #$pr_number onto latest commit from main..."
             # Rebase the PR branch onto the latest commit from the main branch
             git rebase origin/main || {
               echo "::error::Rebase failed for PR #$pr_number. Trying to skip conflicting commits."
               continue
               # Keep skipping the conflicting commits until the rebase is successful
-              while ! git rebase --skip; do
-                echo "::warning::Skipping commit due to conflict. Trying again..."
-              done
+              # while ! git rebase --skip; do
+              #   echo "::warning::Skipping commit due to conflict. Trying again..."
+              # done
+              git rebase --skip || {
+               echo "::error::Rebase skipped commit failed for PR #$pr_number. Skipping entire PR due to unresolved conflict.
+                git rebase --abort
+                continue
+               }
             }
             # After the rebase is successful, push the rebased PR
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
