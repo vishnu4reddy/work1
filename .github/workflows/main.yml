@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - main  # Trigger this action on push to the main branch
+      - main  # Trigger when pushing to the main branch
 
 jobs:
   rebase:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Default GitHub token for fetching and checking out
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Step 2: Set up Git with user info
       - name: Set up Git
@@ -36,14 +36,14 @@ jobs:
           echo "::set-output name=prs::$prs"
           echo "Open PRs: $prs"
 
-      # Step 5: Rebase PRs onto the latest commit from the main branch
-      - name: Rebase PRs onto the latest commit of main
+      # Step 5: Rebase PRs onto the latest commit of main
+      - name: Rebase PRs onto the latest commit from main
         env:
           GH_TOKEN: ${{ secrets.PAT_NAME }}  # Ensure GH_TOKEN is available during rebase
         run: |
           prs="${{ steps.pr_list.outputs.prs }}"
-
-          # Get the latest commit hash from the main branch using GH_TOKEN for authentication
+          
+          # Fetch latest commit from main
           git fetch origin main  # Fetch the latest main branch
           latest_commit=$(git rev-parse origin/main)  # Get the latest commit hash
           echo "Latest commit hash from main: $latest_commit"
@@ -86,6 +86,8 @@ jobs:
 
             # Start the rebase process onto the latest commit from main using GH_TOKEN for authentication
             echo "Starting rebase of PR #$pr_number onto latest commit from main..."
+
+            # Attempt the rebase, skip if there's a conflict
             git rebase $latest_commit || {
               # If there's a conflict during the rebase, abort the rebase and skip the PR
               echo "::warning::Rebase failed for PR #$pr_number due to conflicts. Skipping this PR."
@@ -97,7 +99,7 @@ jobs:
             echo "Rebasing of PR #$pr_number ($pr_branch) successful!"
 
             # Use the PAT for git push authentication
-            git remote set-url origin https://x-access-token:${{ secrets.PAT_NAME }}@github.com/vishnu4reddy/work1.git
+            git remote set-url origin https://x-access-token:${{ secrets.PAT_NAME }}@github.com/a/work1.git
             git push origin "$pr_branch" --force-with-lease
             echo "Successfully pushed rebased PR #$pr_number ($pr_branch)."
           done
