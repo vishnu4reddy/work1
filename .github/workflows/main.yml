@@ -31,8 +31,8 @@ jobs:
       # Step 2: Set up Git with user info
       - name: Set up Git
         run: |
-          git config user.name "vishnu4reddy"
-          git config user.email "vishnu4reddy@users.noreply.github.com"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
 
       # Step 3: Install GitHub CLI
       - name: Install GitHub CLI
